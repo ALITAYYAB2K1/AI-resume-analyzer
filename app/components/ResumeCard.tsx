@@ -23,7 +23,11 @@ function ResumeCard({ resume }: { resume: Resume }) {
       </div>
       <div className="gradient-border animate-in fade-in duration-1000">
         <div className="w-full h-full">
-          <img src={resume.imagePath} alt={`${resume.companyName} logo`} />
+          <img
+            src={resume.imagePath}
+            alt={`resume`}
+            className="w-full h-[350px] object-cover max-sm:h-[200px]"
+          />
         </div>
       </div>
     </Link>
