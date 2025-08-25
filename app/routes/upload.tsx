@@ -1,7 +1,17 @@
-import React, { useState, type FormEvent } from "react";
+import React, { useEffect, useState, type FormEvent } from "react";
 import Navbar from "~/components/Navbar";
+// @ts-ignore - implementation is provided in this declaration file in this project
+import { usePuterStore } from "types/puter.d.ts";
+import { useNavigate } from "react-router";
 
 function upload() {
+  const { auth } = usePuterStore();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      navigate("/auth?next=/upload");
+    }
+  }, [auth.isAuthenticated]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusText, setStatusText] = useState(
     "Upload your resume to get started"

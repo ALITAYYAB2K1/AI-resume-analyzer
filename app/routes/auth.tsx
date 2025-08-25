@@ -11,7 +11,7 @@ export function meta() {
 export default function Auth() {
   const { isLoading, auth } = usePuterStore();
   const location = useLocation();
-  const next = location.search.split("next=")[1];
+  const next = location.search.split("next=")[1] || "/";
   const navigate = useNavigate();
   useEffect(() => {
     if (auth.isAuthenticated) {
