@@ -3,6 +3,7 @@ import Navbar from "~/components/Navbar";
 // @ts-ignore - implementation is provided in this declaration file in this project
 import { usePuterStore } from "types/puter.d.ts";
 import { useNavigate } from "react-router";
+import FileUploader from "~/components/FileUploader";
 
 function upload() {
   const { auth } = usePuterStore();
@@ -16,6 +17,10 @@ function upload() {
   const [statusText, setStatusText] = useState(
     "Upload your resume to get started"
   );
+  const [file, setFile] = useState<File | null>(null);
+  const handleFileSelect = (file: File | null) => {
+    setFile(file);
+  };
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsProcessing(true);
@@ -50,13 +55,27 @@ function upload() {
             >
               <div className="form-div">
                 <label htmlFor="company-name">Company Name</label>
-                <input
-                  type="text"
-                  id="company-name"
-                  name="company-name"
-                  required
+                <input type="text" id="company-name" name="company-name" />
+              </div>
+              <div className="form-div">
+                <label htmlFor="job-title">Job title</label>
+                <input type="text" id="job-title" name="job-title" />
+              </div>
+              <div className="form-div">
+                <label htmlFor="job-description">Job Description</label>
+                <textarea
+                  rows={5}
+                  id="job-description"
+                  name="job-description"
                 />
               </div>
+              <div className="form-div">
+                <label htmlFor="uploader">Upload Resume</label>
+                <FileUploader onFileSelect={handleFileSelect} />
+              </div>
+              <button className="primary-button" type="submit">
+                Analyze Resume
+              </button>
             </form>
           )}
         </div>
