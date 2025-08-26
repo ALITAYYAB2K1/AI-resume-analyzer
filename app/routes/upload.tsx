@@ -118,6 +118,7 @@ function upload() {
       return setStatusText("Analysis failed, please try again.");
     }
     setStatusText("Analysis complete.");
+    navigate(`/resume/${uuid}`);
     setTimeout(() => {
       setIsProcessing(false);
     }, 800);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+// @ts-ignore - runtime store provided via this path in this project
 import { usePuterStore } from "types/puter.d.ts";
 import { useLocation, useNavigate } from "react-router";
 export function meta() {
