@@ -58,8 +58,8 @@ function upload() {
     setIsProcessing(true);
     setStatusText("Processing...");
 
-    const uploadFile = await fs.upload([file]);
-    if (!uploadFile)
+    const uploadedPdf = await fs.upload([file]);
+    if (!uploadedPdf)
       return setStatusText("File upload failed, please try again.");
     setStatusText("Converting to image....");
     const imageFile = await convertPdfToImage(file);
@@ -78,8 +78,8 @@ function upload() {
     const uuid = generateUUID();
     const data = {
       id: uuid,
-      resumePath: uploadFile[0].path,
-      imagePath: uploadedImage[0].path,
+      resumePath: uploadedPdf.path,
+      imagePath: uploadedImage.path,
       companyName,
       jobTitle,
       jobDescription,
@@ -95,7 +95,7 @@ function upload() {
     setStatusText("Analyzing...");
     try {
       const feedback = await ai.feedback(
-        uploadFile[0].path,
+        uploadedPdf.path,
         prepareInstructions({
           jobTitle,
           jobDescription,
