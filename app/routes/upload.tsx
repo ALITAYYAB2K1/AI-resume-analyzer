@@ -4,9 +4,31 @@ import Navbar from "~/components/Navbar";
 import { usePuterStore } from "types/puter.d.ts";
 import { useNavigate } from "react-router";
 import FileUploader from "~/components/FileUploader";
+import { convertPdfToImage } from "~/lib/Pdf2img";
+import { generateUUID } from "~/lib/utils";
+import { prepareInstructions } from "../../constants";
+
+// Small helper to avoid hanging on slow network calls.
+// Accepts undefined and returns immediately with fallback to avoid runtime errors.
+function withTimeout<T>(
+  promise: Promise<T> | undefined,
+  ms = 2000,
+  fallback?: T
+): Promise<T | undefined> {
+  if (!promise || typeof (promise as any).finally !== "function") {
+    return Promise.resolve(fallback as T);
+  }
+  let timer: any;
+  return Promise.race([
+    (promise as Promise<T>).finally(() => clearTimeout(timer)),
+    new Promise<T>(
+      (resolve) => (timer = setTimeout(() => resolve(fallback as T), ms))
+    ),
+  ]);
+}
 
 function upload() {
-  const { auth } = usePuterStore();
+  const { auth, isLoading, fs, ai, kv } = usePuterStore();
   const navigate = useNavigate();
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -21,15 +43,95 @@ function upload() {
   const handleFileSelect = (file: File | null) => {
     setFile(file);
   };
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleAnalyze = async ({
+    companyName,
+    jobTitle,
+    jobDescription,
+    file,
+  }: {
+    companyName: string;
+    jobTitle: string;
+    jobDescription: string;
+    file: File | null;
+  }) => {
+    if (!file) return;
     setIsProcessing(true);
     setStatusText("Processing...");
-    // Simulate file upload
+
+    const uploadFile = await fs.upload([file]);
+    if (!uploadFile)
+      return setStatusText("File upload failed, please try again.");
+    setStatusText("Converting to image....");
+    const imageFile = await convertPdfToImage(file);
+    if (!imageFile || imageFile.error)
+      return setStatusText(
+        imageFile?.error || "File conversion failed, please try again."
+      );
+    setStatusText("Uploading image...");
+    const imageToUpload = imageFile.file;
+    if (!imageToUpload)
+      return setStatusText("Image conversion failed, please try again.");
+    const uploadedImage = await fs.upload([imageToUpload]);
+    if (!uploadedImage)
+      return setStatusText("Image upload failed, please try again.");
+    setStatusText("preparing data...");
+    const uuid = generateUUID();
+    const data = {
+      id: uuid,
+      resumePath: uploadFile[0].path,
+      imagePath: uploadedImage[0].path,
+      companyName,
+      jobTitle,
+      jobDescription,
+      feedback: "",
+    };
+    // Don't block the UI on KV writes; guard sync throws
+    try {
+      void withTimeout(
+        kv.set(`resume:${uuid}`, JSON.stringify(data)),
+        1500
+      ).catch(() => {});
+    } catch {}
+    setStatusText("Analyzing...");
+    try {
+      const feedback = await ai.feedback(
+        uploadFile[0].path,
+        prepareInstructions({
+          jobTitle,
+          jobDescription,
+        })
+      );
+      if (!feedback) return setStatusText("Analysis failed, please try again.");
+      const feedbackText =
+        typeof feedback.message.content === "string"
+          ? feedback.message.content
+          : feedback.message.content[0].text;
+      data.feedback = JSON.parse(feedbackText);
+      try {
+        void withTimeout(
+          kv.set(`resume:${uuid}`, JSON.stringify(data)),
+          1500
+        ).catch(() => {});
+      } catch {}
+    } catch (err) {
+      console.error("AI feedback error", err);
+      return setStatusText("Analysis failed, please try again.");
+    }
+    setStatusText("Analysis complete.");
     setTimeout(() => {
       setIsProcessing(false);
-      setStatusText("Upload complete");
-    }, 2000);
+    }, 800);
+  };
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget.closest("form");
+    if (!form) return;
+    const formData = new FormData(form);
+    const companyName = formData.get("company-name") as string;
+    const jobTitle = formData.get("job-title") as string;
+    const jobDescription = formData.get("job-description") as string;
+    if (!file) return;
+    handleAnalyze({ companyName, jobTitle, jobDescription, file });
   };
   return (
     <main className="bg-[url('/images/bg-main.svg')] bg-cover">
