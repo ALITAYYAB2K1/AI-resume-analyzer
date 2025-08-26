@@ -1,3 +1,7 @@
+import type { ClassValue } from "clsx";
+import clsx from "clsx";
+import { twMerge } from "tailwind-merge";
+
 export const generateUUID = (): string => {
   try {
     if (
@@ -14,3 +18,7 @@ export const generateUUID = (): string => {
     return v.toString(16);
   });
 };
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(...inputs));
+}
