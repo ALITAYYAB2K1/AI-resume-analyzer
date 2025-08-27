@@ -7,6 +7,7 @@ import FileUploader from "~/components/FileUploader";
 import { convertPdfToImage } from "~/lib/Pdf2img";
 import { generateUUID } from "~/lib/utils";
 import { prepareInstructions } from "../../constants";
+import { hardLogout } from "~/lib/hardLogout";
 
 // Small helper to avoid hanging on slow network calls.
 // Accepts undefined and returns immediately with fallback to avoid runtime errors.
@@ -40,6 +41,12 @@ function upload() {
     "Upload your resume to get started"
   );
   const [file, setFile] = useState<File | null>(null);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const openPuter = () =>
+    window.open("https://puter.com", "_blank", "noopener,noreferrer");
+  const handleLogout = async () => {
+    await hardLogout(auth);
+  };
   const handleFileSelect = (file: File | null) => {
     setFile(file);
   };
@@ -101,12 +108,24 @@ function upload() {
           jobDescription,
         })
       );
-      if (!feedback) return setStatusText("Analysis failed, please try again.");
+      if (!feedback) {
+        setStatusText("Analysis failed. You may have run out of AI tokens.");
+        setIsProcessing(false);
+        setShowTokenModal(true);
+        return;
+      }
       const feedbackText =
         typeof feedback.message.content === "string"
           ? feedback.message.content
           : feedback.message.content[0].text;
-      data.feedback = JSON.parse(feedbackText);
+      try {
+        data.feedback = JSON.parse(feedbackText);
+      } catch {
+        setStatusText("Analysis failed. You may have run out of AI tokens.");
+        setIsProcessing(false);
+        setShowTokenModal(true);
+        return;
+      }
       try {
         void withTimeout(
           kv.set(`resume:${uuid}`, JSON.stringify(data)),
@@ -115,7 +134,10 @@ function upload() {
       } catch {}
     } catch (err) {
       console.error("AI feedback error", err);
-      return setStatusText("Analysis failed, please try again.");
+      setStatusText("Analysis failed. You may have run out of AI tokens.");
+      setIsProcessing(false);
+      setShowTokenModal(true);
+      return;
     }
     setStatusText("Analysis complete.");
     navigate(`/resume/${uuid}`);
@@ -183,6 +205,59 @@ function upload() {
           )}
         </div>
       </section>
+      {showTokenModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-in fade-in duration-200">
+            <div className="flex items-start gap-3">
+              <img src="/icons/info.svg" alt="info" className="w-5 h-5 mt-1" />
+              <div>
+                <h3 className="text-xl font-semibold text-black mb-1">
+                  Analysis failed: AI tokens may be exhausted
+                </h3>
+                <p className="text-gray-600">
+                  Your free 20M AI tokens on Puter might be used up. You can
+                  create a new account or subscribe for more tokens and storage.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={openPuter}
+                className="primary-button !bg-indigo-600 hover:!bg-indigo-700 w-full"
+              >
+                Go to puter.com
+              </button>
+              <a
+                href="https://puter.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="secondary-button text-center w-full"
+              >
+                View 20M tokens & storage
+              </a>
+              <button
+                onClick={handleLogout}
+                className="primary-button !bg-red-600 hover:!bg-red-700 w-full"
+              >
+                Logout
+              </button>
+              <button
+                onClick={() => {
+                  setShowTokenModal(false);
+                  navigate("/");
+                }}
+                className="primary-button !bg-gray-200 hover:!bg-gray-300 text-white w-full whitespace-nowrap"
+              >
+                Return to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

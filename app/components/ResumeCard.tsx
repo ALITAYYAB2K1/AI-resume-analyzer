@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
 import ScoreCircle from "./ScoreCircle";
+// @ts-ignore - runtime store provided via this declaration path
 import { usePuterStore } from "types/puter.d.ts";
 
 function ResumeCard({
@@ -9,7 +10,7 @@ function ResumeCard({
   resume: Resume;
 }) {
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
-  const { auth, fs } = usePuterStore();
+  const { fs } = usePuterStore();
   useEffect(() => {
     const loadResume = async () => {
       const blob = await fs.read(imagePath);
@@ -19,10 +20,11 @@ function ResumeCard({
     };
     loadResume();
   }, [imagePath]);
+
   return (
     <Link
       to={`/resume/${id}`}
-      className="resume-card animate-in fade-in duration-1000"
+      className="resume-card animate-in fade-in duration-1000 relative"
     >
       <div className="resume-card-header">
         <div className="flex flex-col gap-2">

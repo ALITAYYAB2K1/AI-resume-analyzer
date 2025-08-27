@@ -190,25 +190,34 @@ export const usePuterStore = create<PuterStore>((set, get) => {
       return;
     }
 
-    set({ isLoading: true, error: null });
+    // Immediately reflect logged-out state in UI to prevent redirect loops
+    set({
+      isLoading: true,
+      error: null,
+      auth: {
+        user: null,
+        isAuthenticated: false,
+        signIn: get().auth.signIn,
+        signOut: get().auth.signOut,
+        refreshUser: get().auth.refreshUser,
+        checkAuthStatus: get().auth.checkAuthStatus,
+        getUser: () => null,
+      },
+    });
 
     try {
       await puter.auth.signOut();
-      set({
-        auth: {
-          user: null,
-          isAuthenticated: false,
-          signIn: get().auth.signIn,
-          signOut: get().auth.signOut,
-          refreshUser: get().auth.refreshUser,
-          checkAuthStatus: get().auth.checkAuthStatus,
-          getUser: () => null,
-        },
-        isLoading: false,
-      });
+      // Double-check server session and retry once if needed
+      try {
+        const stillIn = await puter.auth.isSignedIn();
+        if (stillIn) {
+          await puter.auth.signOut();
+        }
+      } catch {}
+      set({ isLoading: false });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Sign out failed";
-      setError(msg);
+      // Keep user logged-out in UI even if SDK throws
+      set({ isLoading: false });
     }
   };
 
